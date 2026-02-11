@@ -1,74 +1,121 @@
--- [[ AUTO-RETURN TO DEATH POSITION WITH MINI ROUND UI ]] --
+-- [[ ZXX HUB: CIRCLE TOGGLE + OPTIONS MENU ]] --
 
 local Player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local LastDeathPos = nil
 local AutoReturnEnabled = false
 
--- 1. Create GUI (English)
+-- 1. Main ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
-local MainButton = Instance.new("ImageButton")
-local UICorner = Instance.new("UICorner")
-local StatusLabel = Instance.new("TextLabel")
-
-ScreenGui.Name = "Zxx_ReturnHub"
+ScreenGui.Name = "Zxx_MainHub"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- Mini Round Button
-MainButton.Name = "MainButton"
-MainButton.Parent = ScreenGui
-MainButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-MainButton.Position = UDim2.new(0.05, 0, 0.15, 0)
-MainButton.Size = UDim2.new(0, 45, 0, 45)
-MainButton.Image = "rbxassetid://6031068421" -- Gear Icon
-MainButton.Draggable = true
+-- 2. Mini Round Toggle Button (The Circle)
+local CircleBtn = Instance.new("ImageButton")
+CircleBtn.Name = "CircleBtn"
+CircleBtn.Parent = ScreenGui
+CircleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+CircleBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
+CircleBtn.Size = UDim2.new(0, 50, 0, 50)
+CircleBtn.Image = "rbxassetid://6031068421" -- Gear Icon
+CircleBtn.Draggable = true
+Instance.new("UICorner", CircleBtn).CornerRadius = UDim.new(1, 0)
 
-UICorner.CornerRadius = UDim.new(1, 0)
-UICorner.Parent = MainButton
+-- 3. Options Menu (Hidden by default)
+local MenuFrame = Instance.new("Frame")
+MenuFrame.Name = "MenuFrame"
+MenuFrame.Parent = ScreenGui
+MenuFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+MenuFrame.Position = UDim2.new(0.05, 60, 0.4, 0)
+MenuFrame.Size = UDim2.new(0, 160, 0, 150)
+MenuFrame.Visible = false
+Instance.new("UICorner", MenuFrame)
 
--- Status Label (Inside the button/beside it)
-StatusLabel.Parent = MainButton
-StatusLabel.Size = UDim2.new(0, 100, 0, 20)
-StatusLabel.Position = UDim2.new(1.1, 0, 0.25, 0)
-StatusLabel.BackgroundTransparency = 1
-StatusLabel.Text = "Return: OFF"
-StatusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
-StatusLabel.TextSize = 14
-StatusLabel.Font = Enum.Font.SourceSansBold
-StatusLabel.TextXAlignment = Enum.TextXAlignment.Left
+local UIList = Instance.new("UIListLayout", MenuFrame)
+UIList.Padding = UDim.new(0, 5)
+UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
 
--- 2. Logic: Record Position & Teleport
-Player.CharacterRemoving:Connect(function(character)
-    if AutoReturnEnabled then
-        local root = character:FindFirstChild("HumanoidRootPart")
-        if root then
-            LastDeathPos = root.CFrame
+-- 4. Helper Function to Create Buttons
+local function CreateButton(text, color, callback)
+    local btn = Instance.new("TextButton")
+    btn.Parent = MenuFrame
+    btn.Size = UDim2.new(0.9, 0, 0, 40)
+    btn.BackgroundColor3 = color
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    Instance.new("UICorner", btn)
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- 5. Features Logic
+local function GetMapBombStats()
+    local radius, pressure = 20, 500000
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Explosion") then
+            radius, pressure = v.BlastRadius, v.BlastPressure
+            break
         end
     end
-end)
+    return radius, pressure
+end
 
-Player.CharacterAdded:Connect(function(character)
-    if AutoReturnEnabled and LastDeathPos then
-        local root = character:WaitForChild("HumanoidRootPart", 10)
-        if root then
-            task.wait(1) -- Safety wait for game to load
-            root.CFrame = LastDeathPos
-        end
+-- Explode Function
+local function SelfDestruct()
+    local char = Player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local r, p = GetMapBombStats()
+        local ex = Instance.new("Explosion")
+        ex.BlastRadius, ex.BlastPressure = r, p
+        ex.Position = char.HumanoidRootPart.Position
+        ex.Parent = workspace
+        char:BreakJoints()
     end
-end)
+end
 
--- 3. Toggle Button Function
-MainButton.MouseButton1Click:Connect(function()
+-- 6. Adding Buttons to Menu
+local ReturnBtn = CreateButton("Return: OFF", Color3.fromRGB(150, 50, 50), function(self)
     AutoReturnEnabled = not AutoReturnEnabled
     if AutoReturnEnabled then
-        StatusLabel.Text = "Return: ON"
-        StatusLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+        MenuFrame.ReturnBtn.Text = "Return: ON"
+        MenuFrame.ReturnBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
     else
-        StatusLabel.Text = "Return: OFF"
-        StatusLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+        MenuFrame.ReturnBtn.Text = "Return: OFF"
+        MenuFrame.ReturnBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+    end
+end)
+ReturnBtn.Name = "ReturnBtn"
+
+CreateButton("EXPLODE!", Color3.fromRGB(200, 100, 0), function()
+    SelfDestruct()
+end)
+
+CreateButton("CLOSE MENU", Color3.fromRGB(80, 80, 80), function()
+    MenuFrame.Visible = false
+end)
+
+-- 7. Toggle Menu Visibility
+CircleBtn.MouseButton1Click:Connect(function()
+    MenuFrame.Visible = not MenuFrame.Visible
+end)
+
+-- 8. Auto-Return Persistence
+Player.CharacterRemoving:Connect(function(char)
+    if AutoReturnEnabled and char:FindFirstChild("HumanoidRootPart") then
+        LastDeathPos = char.HumanoidRootPart.CFrame
     end
 end)
 
-print("Script Loaded: Auto-Return with Mini UI")
+Player.CharacterAdded:Connect(function(char)
+    if AutoReturnEnabled and LastDeathPos then
+        local root = char:WaitForChild("HumanoidRootPart", 10)
+        task.wait(1)
+        root.CFrame = LastDeathPos
+    end
+end)
 
+print("Zxx Hub V4 Loaded: Circle Toggle + Options Menu")
