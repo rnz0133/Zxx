@@ -1,84 +1,83 @@
--- [[ ZXX HUB: CIRCLE TOGGLE + OPTIONS MENU ]] --
+-- [[ ZXX ULTIMATE HUB V7 - ALL IN ONE ]] --
 
 local Player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local LastDeathPos = nil
-local AutoReturnEnabled = false
+local AutoReturnEnabled = true -- Để mặc định ON cho tiện
 
--- 1. Main ScreenGui
+-- 1. Main UI Setup
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Zxx_MainHub"
+ScreenGui.Name = "Zxx_Ultimate_V7"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- 2. Mini Round Toggle Button (The Circle)
+-- Mini Round Toggle (Nút tròn nhỏ)
 local CircleBtn = Instance.new("ImageButton")
-CircleBtn.Name = "CircleBtn"
 CircleBtn.Parent = ScreenGui
 CircleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 CircleBtn.Position = UDim2.new(0.05, 0, 0.4, 0)
-CircleBtn.Size = UDim2.new(0, 50, 0, 50)
-CircleBtn.Image = "rbxassetid://6031068421" -- Gear Icon
+CircleBtn.Size = UDim2.new(0, 45, 0, 45)
+CircleBtn.Image = "rbxassetid://10633005881" -- Bomb Icon
 CircleBtn.Draggable = true
 Instance.new("UICorner", CircleBtn).CornerRadius = UDim.new(1, 0)
 
--- 3. Options Menu (Hidden by default)
+-- Main Menu Frame
 local MenuFrame = Instance.new("Frame")
-MenuFrame.Name = "MenuFrame"
 MenuFrame.Parent = ScreenGui
-MenuFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-MenuFrame.Position = UDim2.new(0.05, 60, 0.4, 0)
-MenuFrame.Size = UDim2.new(0, 160, 0, 150)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+MenuFrame.Position = UDim2.new(0.05, 55, 0.3, 0)
+MenuFrame.Size = UDim2.new(0, 200, 0, 320)
 MenuFrame.Visible = false
 Instance.new("UICorner", MenuFrame)
 
 local UIList = Instance.new("UIListLayout", MenuFrame)
 UIList.Padding = UDim.new(0, 5)
 UIList.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIList.SortOrder = Enum.SortOrder.LayoutOrder
 
--- 4. Helper Function to Create Buttons
-local function CreateButton(text, color, callback)
-    local btn = Instance.new("TextButton")
-    btn.Parent = MenuFrame
-    btn.Size = UDim2.new(0.9, 0, 0, 40)
-    btn.BackgroundColor3 = color
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
-    Instance.new("UICorner", btn)
-    btn.MouseButton1Click:Connect(callback)
-    return btn
+-- 2. Input Box (Dùng cho Bring Player)
+local NameInput = Instance.new("TextBox")
+NameInput.Parent = MenuFrame
+NameInput.Size = UDim2.new(0.9, 0, 0, 35)
+NameInput.PlaceholderText = "Target Name..."
+NameInput.Text = ""
+NameInput.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+NameInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+Instance.new("UICorner", NameInput)
+
+-- 3. Core Functions
+local function MakeExplosion(pos)
+    local ex = Instance.new("Explosion")
+    ex.BlastRadius = 40
+    ex.BlastPressure = 1000000
+    ex.Position = pos
+    ex.Parent = workspace
 end
 
--- 5. Features Logic
-local function GetMapBombStats()
-    local radius, pressure = 20, 500000
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("Explosion") then
-            radius, pressure = v.BlastRadius, v.BlastPressure
-            break
+local function GetTarget(name)
+    for _, p in pairs(game.Players:GetPlayers()) do
+        if p.Name:lower():sub(1, #name) == name:lower() or p.DisplayName:lower():sub(1, #name) == name:lower() then
+            return p
         end
     end
-    return radius, pressure
 end
 
--- Explode Function
-local function SelfDestruct()
-    local char = Player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        local r, p = GetMapBombStats()
-        local ex = Instance.new("Explosion")
-        ex.BlastRadius, ex.BlastPressure = r, p
-        ex.Position = char.HumanoidRootPart.Position
-        ex.Parent = workspace
-        char:BreakJoints()
-    end
+-- 4. Helper Create Button
+local function AddBtn(text, color, func)
+    local b = Instance.new("TextButton")
+    b.Parent = MenuFrame
+    b.Size = UDim2.new(0.9, 0, 0, 40)
+    b.Text = text
+    b.BackgroundColor3 = color
+    b.TextColor3 = Color3.fromRGB(255, 255, 255)
+    b.Font = Enum.Font.SourceSansBold
+    b.TextSize = 14
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(func)
+    return b
 end
 
--- 6. Adding Buttons to Menu
-local ReturnBtn = CreateButton("Return: OFF", Color3.fromRGB(150, 50, 50), function(self)
+-- 5. Adding Buttons
+local ReturnBtn = AddBtn("Return: ON", Color3.fromRGB(50, 150, 50), function()
     AutoReturnEnabled = not AutoReturnEnabled
     if AutoReturnEnabled then
         MenuFrame.ReturnBtn.Text = "Return: ON"
@@ -90,20 +89,36 @@ local ReturnBtn = CreateButton("Return: OFF", Color3.fromRGB(150, 50, 50), funct
 end)
 ReturnBtn.Name = "ReturnBtn"
 
-CreateButton("EXPLODE!", Color3.fromRGB(200, 100, 0), function()
-    SelfDestruct()
+AddBtn("BRING PLAYER", Color3.fromRGB(0, 100, 200), function()
+    local t = GetTarget(NameInput.Text)
+    if t and t.Character and Player.Character then
+        t.Character.HumanoidRootPart.CFrame = Player.Character.HumanoidRootPart.CFrame
+    end
 end)
 
-CreateButton("CLOSE MENU", Color3.fromRGB(80, 80, 80), function()
-    MenuFrame.Visible = false
+AddBtn("MEGA EXPLODE", Color3.fromRGB(200, 100, 0), function()
+    if Player.Character then
+        MakeExplosion(Player.Character.HumanoidRootPart.Position)
+        Player.Character:BreakJoints()
+    end
 end)
 
--- 7. Toggle Menu Visibility
-CircleBtn.MouseButton1Click:Connect(function()
-    MenuFrame.Visible = not MenuFrame.Visible
+AddBtn("KILL ALL", Color3.fromRGB(200, 0, 0), function()
+    for _, target in pairs(game.Players:GetPlayers()) do
+        if target ~= Player and target.Character and Player.Character then
+            Player.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+            task.wait(0.2)
+            MakeExplosion(target.Character.HumanoidRootPart.Position)
+            task.wait(0.1)
+        end
+    end
 end)
 
--- 8. Auto-Return Persistence
+AddBtn("CLOSE HUB", Color3.fromRGB(70, 70, 70), function() MenuFrame.Visible = false end)
+
+-- 6. Events Logic
+CircleBtn.MouseButton1Click:Connect(function() MenuFrame.Visible = not MenuFrame.Visible end)
+
 Player.CharacterRemoving:Connect(function(char)
     if AutoReturnEnabled and char:FindFirstChild("HumanoidRootPart") then
         LastDeathPos = char.HumanoidRootPart.CFrame
@@ -113,9 +128,10 @@ end)
 Player.CharacterAdded:Connect(function(char)
     if AutoReturnEnabled and LastDeathPos then
         local root = char:WaitForChild("HumanoidRootPart", 10)
-        task.wait(1)
+        task.wait(0.8)
         root.CFrame = LastDeathPos
     end
 end)
 
-print("Zxx Hub V4 Loaded: Circle Toggle + Options Menu")
+print("Zxx Hub V7 Loaded! All features preserved.")
+
