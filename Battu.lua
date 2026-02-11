@@ -1,82 +1,48 @@
--- [[ MINI ROUND GUI + GOD MODE SCRIPT ]] --
-
-local Library = {}
-local ScreenGui = Instance.new("ScreenGui")
-local ToggleButton = Instance.new("ImageButton")
-local UICorner = Instance.new("UICorner")
-local MainFrame = Instance.new("Frame")
-local StatusLabel = Instance.new("TextLabel")
-local GodButton = Instance.new("TextButton")
-
--- 1. Setup ScreenGui
-ScreenGui.Name = "MiniScriptMenu"
-ScreenGui.Parent = game.CoreGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
--- 2. Mini Round Button (The Pop-up)
-ToggleButton.Name = "ToggleButton"
-ToggleButton.Parent = ScreenGui
-ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-ToggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
-ToggleButton.Size = UDim2.new(0, 50, 0, 50) -- Small Round Size
-ToggleButton.Image = "rbxassetid://6031068426" -- Icon (Menu Icon)
-ToggleButton.Draggable = true -- You can move it around
-
-UICorner.CornerRadius = UDim.new(1, 0) -- Make it a perfect circle
-UICorner.Parent = ToggleButton
-
--- 3. Main Menu Frame
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = ScreenGui
-MainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-MainFrame.Position = UDim2.new(0.05, 60, 0.2, 0)
-MainFrame.Size = UDim2.new(0, 150, 0, 100)
-MainFrame.Visible = false -- Hidden by default
-
-local MainCorner = Instance.new("UICorner")
-MainCorner.Parent = MainFrame
-
--- 4. God Mode Logic
-local GodModeActive = false
+-- [[ GHOST MODE - ANTI INTERACTION ]] --
 local Player = game.Players.LocalPlayer
 local RunService = game:GetService("RunService")
 
-local function ToggleGodMode()
-    GodModeActive = not GodModeActive
-    if GodModeActive then
-        GodButton.Text = "God Mode: ON"
-        GodButton.TextColor3 = Color3.fromRGB(0, 255, 0)
-    else
-        GodButton.Text = "God Mode: OFF"
-        GodButton.TextColor3 = Color3.fromRGB(255, 0, 0)
-    end
-end
+local function ApplyGhostMode(Character)
+    -- Đợi nhân vật tải xong
+    local Humanoid = Character:WaitForChild("Humanoid")
+    
+    -- Vòng lặp liên tục để đảm bảo bạn không chạm vào vật gây hại
+    RunService.Stepped:Connect(function()
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                -- Cho phép bạn vẫn đứng trên sàn (BasePlate) nhưng xuyên qua vật khác
+                part.CanTouch = true 
+            end
+        end
+    end)
 
--- Function to handle health refill
-RunService.Heartbeat:Connect(function()
-    if GodModeActive then
-        local Character = Player.Character
-        if Character and Character:FindFirstChild("Humanoid") then
-            Character.Humanoid.Health = Character.Humanoid.MaxHealth
-            Character.Humanoid.BreakJointsOnDeath = false
+    -- Quét toàn bộ map để tìm Bom và vật thể của Boss
+    local function DisableDanger(obj)
+        -- Kiểm tra nếu tên vật thể chứa "Bomb", "Explosion", "Mine" hoặc thuộc Boss
+        if obj:IsA("BasePart") or obj:IsA("TouchTransmitter") then
+            local name = obj.Name:lower()
+            if name:find("bomb") or name:find("mine") or name:find("tnt") or obj.Parent.Name:lower():find("boss") then
+                if obj:IsA("BasePart") then
+                    obj.CanTouch = false -- Vô hiệu hóa khả năng chạm của quả bom
+                elseif obj:IsA("TouchTransmitter") then
+                    obj:Destroy() -- Xóa bỏ bộ cảm biến va chạm của quả bom
+                end
+            end
         end
     end
-end)
 
--- 5. UI Buttons Inside Menu
-GodButton.Name = "GodButton"
-GodButton.Parent = MainFrame
-GodButton.Size = UDim2.new(0.8, 0, 0.4, 0)
-GodButton.Position = UDim2.new(0.1, 0, 0.3, 0)
-GodButton.Text = "God Mode: OFF"
-GodButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-GodButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-GodButton.MouseButton1Click:Connect(ToggleGodMode)
+    -- Vô hiệu hóa những thứ đang có sẵn trong Workspace
+    for _, v in pairs(workspace:GetDescendants()) do
+        DisableDanger(v)
+    end
 
--- 6. Open/Close Logic
-ToggleButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = not MainFrame.Visible
-end)
+    -- Vô hiệu hóa cả những thứ mới xuất hiện (ví dụ Boss vừa ném bom mới ra)
+    workspace.DescendantAdded:Connect(DisableDanger)
+end
 
-print("Mini Round Script loaded! Click the circle to open.")
+-- Kích hoạt khi hồi sinh
+Player.CharacterAdded:Connect(ApplyGhostMode)
+if Player.Character then ApplyGhostMode(Player.Character) end
+
+print("Bức ngăn vô hình đã kích hoạt! Bom sẽ không nổ khi bạn chạm vào.")
 
